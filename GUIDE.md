@@ -1,5 +1,9 @@
 # Mellow Video usage guide
 
+## Preload the next frames without a long loading screen
+
+After the audio-consent gesture, preload only the next few frames and music. Keep the loading minimum around 150–200ms and a short timeout. On each frame change, prime the next one or two frames and release queue references several frames behind. Start continuous music at the intended story beat rather than automatically on Frame 00.
+
 ## Keep music playing across frames
 
 Create one background track outside scene rendering and reuse it through the complete chapter or story. Start it only from the audio-consent user gesture. Pause and resume it with the master playback control; do not seek it during frame navigation. Keep frame sounds on a different audio element so both channels can play simultaneously.

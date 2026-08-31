@@ -4,7 +4,11 @@ Mellow Video is a dependency-free presentation layer for timed visual stories.
 It coordinates reusable frame timing, presentation, navigation and optional
 frame-scoped audio while the host application remains in control.
 
-Current version: **0.12.0**
+Current version: **0.13.0**
+
+## Short predictive loading
+
+`createPreloadQueue()` loads upcoming image and audio assets, shows an optional minimal loader only while necessary, caches completed requests, and releases explicit references to assets behind the playhead. Configure `minimumMs`, `timeoutMs`, and localized `label`.
 
 ## Continuous background music
 

@@ -372,8 +372,19 @@
     destroy(){this.pause();this.audio.removeAttribute('src');this.audio.load()}
   }
 
+  class MellowPreloadQueue{
+    constructor(options={}){this.options={host:document.body,minimumMs:180,timeoutMs:1600,label:'LOADING NEXT SCENE',...options};this.cache=new Map()}
+    normalize(asset){return typeof asset==='string'?{url:asset,type:/\.(mp3|wav|m4a|aac|ogg|opus)(\?|$)/i.test(asset)?'audio':'image'}:asset}
+    load(asset){const item=this.normalize(asset);if(!item?.url)return Promise.resolve(false);if(this.cache.has(item.url))return this.cache.get(item.url).promise;let element;const promise=new Promise(resolve=>{const done=ok=>resolve(ok);if(item.type==='audio'){element=new Audio();element.preload='auto';element.addEventListener('canplaythrough',()=>done(true),{once:true});element.addEventListener('error',()=>done(false),{once:true});element.src=item.url;element.load()}else{element=new Image();element.decoding='async';element.onload=()=>done(true);element.onerror=()=>done(false);element.src=item.url}});this.cache.set(item.url,{promise,element,type:item.type});return promise}
+    mountLoader(label){const element=document.createElement('div');element.className='mellow-preload-overlay';element.innerHTML=`<div><i></i><span>${MellowVideo.escape(label||this.options.label)}</span></div>`;this.options.host.append(element);requestAnimationFrame(()=>element.classList.add('is-visible'));return element}
+    async preload(assets=[],options={}){const settings={showLoader:false,label:this.options.label,minimumMs:this.options.minimumMs,timeoutMs:this.options.timeoutMs,...options};const started=performance.now();const loader=settings.showLoader?this.mountLoader(settings.label):null;const work=Promise.allSettled(assets.map(asset=>this.load(asset)));await Promise.race([work,new Promise(resolve=>setTimeout(resolve,settings.timeoutMs))]);const remaining=settings.minimumMs-(performance.now()-started);if(loader&&remaining>0)await new Promise(resolve=>setTimeout(resolve,remaining));if(loader){loader.classList.remove('is-visible');setTimeout(()=>loader.remove(),180)}return this}
+    release(assets=[]){assets.map(asset=>this.normalize(asset)?.url).filter(Boolean).forEach(url=>{const entry=this.cache.get(url);if(entry?.element){entry.element.removeAttribute?.('src');entry.element.load?.()}this.cache.delete(url)});return this}
+    clear(){return this.release([...this.cache.keys()])}
+    destroy(){this.clear();document.querySelectorAll('.mellow-preload-overlay').forEach(element=>element.remove())}
+  }
+
   class MellowVideo{
-    static VERSION='0.12.0';
+    static VERSION='0.13.0';
     static AGENT_THEMES=['claude-code','vscode'];
     static AGENT_EFFECTS=['none','prompt-zoom','prompt-pan'];
     static CHAPTER_CARD_THEMES=['comic-cyber','cinematic-dark'];
@@ -386,6 +397,7 @@
     static CameraMotion=MellowCameraMotion;
     static CAMERA_MOTIONS=['none','anime-thought-zoom','slow-focus-push'];
     static BackgroundTrack=MellowBackgroundTrack;
+    static PreloadQueue=MellowPreloadQueue;
     static CAPABILITIES=Object.freeze({
       presentation:{method:'show',modes:['story','cinematic-subtitles','cyberpunk-title']},
       agentWindow:{method:'agentWindowMarkup',themes:['claude-code','vscode'],effects:['none','prompt-zoom','prompt-pan'],options:['theme','effect','duration','agent','files','earlier','earlierLabel','previousReply','prompt','accepted','working','footer']},
@@ -395,6 +407,7 @@
       cameraMotion:{method:'applyCameraMotion',presets:['none','anime-thought-zoom','slow-focus-push'],options:['selector','preset','intensity','duration','origin'],methods:['update','destroy'],reducedMotionSafe:true},
       thoughtBubble:{method:'styleThoughtBubble',className:'mellow-thought-bubble',keepsTextInHTML:true},
       backgroundTrack:{method:'createBackgroundTrack',options:['src','volume','loop','enabled'],methods:['configure','play','pause','setEnabled','setVolume','setLoop','restart','getState','destroy'],continuousAcrossFrames:true,separateFromFrameAudio:true,requiresUserGesture:true},
+      preloadQueue:{method:'createPreloadQueue',options:['host','minimumMs','timeoutMs','label'],assetTypes:['image','audio'],methods:['load','preload','release','clear','destroy'],cacheAware:true,preloadAhead:true,releaseBehind:true},
       frameTimeline:{method:'createFrameTimeline',options:['selector','frames','audio','autoplay','loop','onChange','onComplete'],frameAudioOptions:['audio','audioSrc','audioStart','audioEnd','audioDuration','audioPlayback','audioLoop','audioVolume','audioScope'],controls:['goTo','next','previous','play','pause','setPlaying','recalculate','setFrameDuration','destroy'],audioSeek:true,audioTrim:true,audioLoop:true,frameScopedAudio:true}
       ,debugMode:{method:'enableDebug',options:['timeline','chapter','label','storageKey','enabled','placement','controls','audioControls','backgroundTrack','promptExport'],placements:['fixed','after-host','frame-footer'],controlTypes:['select','toggle','number','action','readout'],promptScopes:['frame','chapter','moment'],methods:['setTimeline','setEnabled','setTimingVisible','setControlValue','getControlValues','getAudioState','getBackgroundTrackState','previewAudio','renderControls','generatePrompt','copyPrompt','destroy'],readouts:['chapter','frame','frameDuration','elapsed','remaining','range','total','playState','audioCurrent','audioClipDuration','audioSourceDuration'],toggle:true}
     });
@@ -424,6 +437,7 @@
     static applyCameraMotion(host,options={}){return new MellowCameraMotion(host,options)}
     static styleThoughtBubble(element){if(element)element.classList.add('mellow-thought-bubble');return element}
     static createBackgroundTrack(audio,options={}){return new MellowBackgroundTrack(audio,options)}
+    static createPreloadQueue(options={}){return new MellowPreloadQueue(options)}
 
     static escape(value=''){
       return String(value).replace(/[&<>"']/g,char=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));

@@ -1,5 +1,9 @@
 # Mellow Video public API
 
+## `createPreloadQueue(options)`
+
+Returns a queue with `load`, `preload`, `release`, `clear`, and `destroy`. Assets can be URLs or `{ url, type: 'image' | 'audio' }`. `preload(assets, { showLoader, label, minimumMs, timeoutMs })` resolves after completion or timeout and reuses cached promises.
+
 ## `createBackgroundTrack(audio, options)`
 
 Creates a continuous music controller with `src`, `volume`, `loop`, and `enabled`. Methods: `configure`, `play`, `pause`, `setEnabled`, `setVolume`, `setLoop`, `restart`, `getState`, and `destroy`. Use a separate `<audio>` element so frame effects and music can overlap independently.

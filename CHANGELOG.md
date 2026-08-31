@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.13.0] - 2026-08-31
+
+- Added cache-aware image/audio preload queues.
+- Added very short localized loading indicator with minimum and timeout controls.
+- Added preload-ahead and release-behind APIs.
+
 ## [0.12.0] - 2026-08-31
 
 - Added reusable continuous background-music tracks separate from frame audio.

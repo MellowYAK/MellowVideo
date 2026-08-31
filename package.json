@@ -1,6 +1,6 @@
 {
   "name": "mellow-video",
-  "version": "0.13.0",
+  "version": "0.13.1",
   "description": "Presentation layers for timed Mellow Story Teller scenes.",
   "main": "mellow-video.js",
   "repository": {

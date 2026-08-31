@@ -2,7 +2,7 @@
 
 ## `createPreloadQueue(options)`
 
-Returns a queue with `load`, `preload`, `release`, `clear`, and `destroy`. Assets can be URLs or `{ url, type: 'image' | 'audio' }`. `preload(assets, { showLoader, label, minimumMs, timeoutMs })` resolves after completion or timeout and reuses cached promises.
+Returns a queue with `load`, `preload`, `release`, `clear`, and `destroy`. Assets can be URLs or `{ url, type: 'image' | 'audio', critical }`. Critical images resolve only after `HTMLImageElement.decode()` completes. `preload(assets, { showLoader, label, minimumMs, timeoutMs, criticalTimeoutMs })` waits for critical media, lets optional media warm in the background, and reuses cached promises.
 
 ## `createBackgroundTrack(audio, options)`
 

@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.13.1] - 2026-08-31
+
+- Wait for critical image decoding before dismissing the preload loader.
+- Allow optional audio to warm without blocking the first visible scene.
+- Add a separate critical-load timeout for slow networks.
+
 ## [0.13.0] - 2026-08-31
 
 - Added cache-aware image/audio preload queues.

@@ -8,7 +8,7 @@ Current version: **0.13.0**
 
 ## Short predictive loading
 
-`createPreloadQueue()` loads upcoming image and audio assets, shows an optional minimal loader only while necessary, caches completed requests, and releases explicit references to assets behind the playhead. Configure `minimumMs`, `timeoutMs`, and localized `label`.
+`createPreloadQueue()` loads upcoming image and audio assets, shows an optional minimal loader only while necessary, caches completed requests, and releases explicit references to assets behind the playhead. Configure `minimumMs`, `timeoutMs`, `criticalTimeoutMs`, and localized `label`. Mark first-visible images with `critical: true`; MellowVideo waits until the browser has downloaded and decoded them, while optional audio may continue warming in the background.
 
 ## Continuous background music
 

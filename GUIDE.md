@@ -2,7 +2,7 @@
 
 ## Preload the next frames without a long loading screen
 
-After the audio-consent gesture, preload only the next few frames and music. Keep the loading minimum around 150–200ms and a short timeout. On each frame change, prime the next one or two frames and release queue references several frames behind. Start continuous music at the intended story beat rather than automatically on Frame 00.
+After the audio-consent gesture, preload only the next few frames and music. Keep the loading minimum around 150–200ms and a short timeout. Mark first-visible images with `critical: true`; the loader then waits for `HTMLImageElement.decode()` (up to `criticalTimeoutMs`) instead of advancing to a blank frame. Optional audio may continue warming without blocking the first image. On each frame change, prime the next one or two frames and release queue references several frames behind. Start continuous music at the intended story beat rather than automatically on Frame 00. Prefer WebP/AVIF scene plates sized for their largest rendered viewport rather than multi-megabyte PNG files.
 
 ## Keep music playing across frames
 

@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.11.0] - 2026-08-31
+
+- Added reusable `applyCameraMotion()` with anime thought zoom and slow focus push presets.
+- Added animated emphasis lines and reduced-motion fallback.
+- Added accessible HTML `styleThoughtBubble()` treatment.
+
 ## [0.10.0] - 2026-08-31
 
 ### Added

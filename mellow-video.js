@@ -344,8 +344,18 @@
     destroy(){if(this.layer)this.layer.remove();this.layer=null;this.host.classList.remove('has-mellow-speaker-motion');return this}
   }
 
+  class MellowCameraMotion{
+    constructor(host,options={}){
+      if(!host)throw new Error('MellowVideo.CameraMotion: a host element is required.');
+      this.host=host;this.options={selector:'img',preset:'anime-thought-zoom',intensity:1,duration:2.5,origin:'42% 38%',...options};this.mount();
+    }
+    mount(){this.destroy();if(this.options.preset==='none')return this;const target=this.host.querySelector(this.options.selector);if(!target)return this;this.target=target;this.host.classList.add('has-mellow-camera-motion');this.host.dataset.cameraMotion=this.options.preset;target.classList.add('mellow-camera-target');target.style.setProperty('--mellow-camera-intensity',Math.max(0,Number(this.options.intensity)||0));target.style.setProperty('--mellow-camera-duration',`${Math.max(.2,Number(this.options.duration)||2.5)}s`);target.style.setProperty('--mellow-camera-origin',this.options.origin);return this}
+    update(options={}){this.options={...this.options,...options};return this.mount()}
+    destroy(){if(this.target){this.target.classList.remove('mellow-camera-target');this.target.style.removeProperty('--mellow-camera-intensity');this.target.style.removeProperty('--mellow-camera-duration');this.target.style.removeProperty('--mellow-camera-origin')}this.target=null;this.host.classList.remove('has-mellow-camera-motion');delete this.host.dataset.cameraMotion;return this}
+  }
+
   class MellowVideo{
-    static VERSION='0.10.0';
+    static VERSION='0.11.0';
     static AGENT_THEMES=['claude-code','vscode'];
     static AGENT_EFFECTS=['none','prompt-zoom','prompt-pan'];
     static CHAPTER_CARD_THEMES=['comic-cyber','cinematic-dark'];
@@ -355,12 +365,16 @@
     static AudioGate=MellowAudioGate;
     static SpeakerMotion=MellowSpeakerMotion;
     static SPEAKER_MOTIONS=['none','gentle-talk','expressive-talk'];
+    static CameraMotion=MellowCameraMotion;
+    static CAMERA_MOTIONS=['none','anime-thought-zoom','slow-focus-push'];
     static CAPABILITIES=Object.freeze({
       presentation:{method:'show',modes:['story','cinematic-subtitles','cyberpunk-title']},
       agentWindow:{method:'agentWindowMarkup',themes:['claude-code','vscode'],effects:['none','prompt-zoom','prompt-pan'],options:['theme','effect','duration','agent','files','earlier','earlierLabel','previousReply','prompt','accepted','working','footer']},
       chapterCard:{method:'chapterCardMarkup',optional:true,themes:['comic-cyber','cinematic-dark'],effects:['none','panel-slam'],options:['theme','effect','duration','eyebrow','title','subtitle','badge','accent','contrast']},
       audioGate:{method:'requestAudioConsent',options:['language','host','copy','onChoice'],methods:['setLanguage','choose','destroy'],returnsChoicePromise:true},
       speakerMotion:{method:'applySpeakerMotion',presets:['none','gentle-talk','expressive-talk'],options:['selector','preset','intensity','speed','clipPath','mask','origin'],methods:['update','destroy'],isolatedLayer:true,featheredMask:true,reducedMotionSafe:true},
+      cameraMotion:{method:'applyCameraMotion',presets:['none','anime-thought-zoom','slow-focus-push'],options:['selector','preset','intensity','duration','origin'],methods:['update','destroy'],reducedMotionSafe:true},
+      thoughtBubble:{method:'styleThoughtBubble',className:'mellow-thought-bubble',keepsTextInHTML:true},
       frameTimeline:{method:'createFrameTimeline',options:['selector','frames','audio','autoplay','loop','onChange','onComplete'],frameAudioOptions:['audio','audioSrc','audioStart','audioEnd','audioDuration','audioPlayback','audioLoop','audioVolume','audioScope'],controls:['goTo','next','previous','play','pause','setPlaying','recalculate','setFrameDuration','destroy'],audioSeek:true,audioTrim:true,audioLoop:true,frameScopedAudio:true}
       ,debugMode:{method:'enableDebug',options:['timeline','chapter','label','storageKey','enabled','placement','controls','audioControls','promptExport'],placements:['fixed','after-host','frame-footer'],controlTypes:['select','toggle','number','action','readout'],promptScopes:['frame','chapter','moment'],methods:['setTimeline','setEnabled','setTimingVisible','setControlValue','getControlValues','getAudioState','previewAudio','renderControls','generatePrompt','copyPrompt','destroy'],readouts:['chapter','frame','frameDuration','elapsed','remaining','range','total','playState','audioCurrent','audioClipDuration','audioSourceDuration'],toggle:true}
     });
@@ -386,6 +400,9 @@
     static applySpeakerMotion(host,options={}){
       return new MellowSpeakerMotion(host,options);
     }
+
+    static applyCameraMotion(host,options={}){return new MellowCameraMotion(host,options)}
+    static styleThoughtBubble(element){if(element)element.classList.add('mellow-thought-bubble');return element}
 
     static escape(value=''){
       return String(value).replace(/[&<>"']/g,char=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));

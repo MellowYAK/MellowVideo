@@ -1,5 +1,9 @@
 # Mellow Video usage guide
 
+## Show an internal thought
+
+Use an HTML thought bubble rather than a speech tail, then apply `anime-thought-zoom` to briefly push toward the subject’s face. Keep intensity near `1`; use `origin` to identify the face location. The preset supplies a quick push, restrained settling motion, and short emphasis lines rather than continuous shaking.
+
 ## Animate a speaker naturally
 
 Use `applySpeakerMotion()` when a person in a still image should feel alive while speaking. Prefer `gentle-talk` for breathing, tiny posture shifts and restrained head movement. Use `expressive-talk` only when the scene needs more energy. A feathered `mask` isolates the character and prevents visible hard edges; keep intensity near `1` to avoid a shake effect. Expose preset, intensity and speed through Debug controls so Prompt Export can reproduce the selected look.

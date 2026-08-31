@@ -4,7 +4,11 @@ Mellow Video is a dependency-free presentation layer for timed visual stories.
 It coordinates reusable frame timing, presentation, navigation and optional
 frame-scoped audio while the host application remains in control.
 
-Current version: **0.10.0**
+Current version: **0.11.0**
+
+## Camera motion and thoughts
+
+`applyCameraMotion()` adds reusable cinematic focus moves such as `anime-thought-zoom` and `slow-focus-push`. Configure selector, intensity, duration, and transform origin. `styleThoughtBubble()` converts an HTML caption into a thought bubble while keeping all localized text sharp and accessible.
 
 ## Speaker motion
 

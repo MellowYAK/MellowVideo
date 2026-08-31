@@ -1,5 +1,9 @@
 # Mellow Video public API
 
+## Camera motion and thought bubbles
+
+`applyCameraMotion(host, { selector, preset, intensity, duration, origin })` returns an updatable controller. Presets are `none`, `anime-thought-zoom`, and `slow-focus-push`. `styleThoughtBubble(element)` adds the reusable `mellow-thought-bubble` class without rasterizing its text.
+
 ## `applySpeakerMotion(host, options)`
 
 Adds organic movement to one selected visual layer without moving the complete frame. Options: `selector`, `preset`, `intensity`, `speed`, `clipPath`, `mask`, and `origin`. Returns a controller with `update(options)` and `destroy()`. Presets: `none`, `gentle-talk`, `expressive-talk`.

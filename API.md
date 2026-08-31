@@ -1,5 +1,11 @@
 # Mellow Video public API
 
+## Frame audio range and playback
+
+Frames accept `audioSrc`, `audioStart`, `audioEnd`, `audioDuration`, `audioPlayback: 'once' | 'loop'`, `audioLoop`, `audioVolume`, and `audioScope`. `audioEnd` is an absolute source time; `audioDuration` is relative to `audioStart`. At the trim boundary playback stops or returns to `audioStart` according to playback mode.
+
+With `audioControls` enabled, Debug Mode adds live enabled, volume, muted, playback, start, end, timing and preview controls. `getAudioState()` returns configured range plus current, clip and source durations.
+
 This file is the authoritative option catalog for Mellow Video. Features added
 to the engine must be documented here, in `GUIDE.md`, and in `CHANGELOG.md`.
 
@@ -69,6 +75,17 @@ Selecting a frame remounts its visual node and restarts nested CSS animations
 and pseudo-element effects from time zero, so a manual jump looks the same as
 automatic playback in browsers that do not expose the Web Animations API.
 
+Frame-scoped audio options are `audio`, `audioSrc`, `audioStart`, `audioVolume`
+and `audioScope`. Use `audio: false` on the next frame to stop a previous
+frame-owned clip during automatic or manual navigation.
+
+## Audio consent gate
+
+`MellowVideo.requestAudioConsent(options)` creates an iPhone-safe modal before
+playback. Options: `language`, `host`, localized `copy` and `onChoice(enabled)`.
+The returned `AudioGate` exposes `whenChosen`, `setLanguage(language)`,
+`choose(enabled)` and `destroy()`.
+
 ## Extension contract
 
 - Add visual skins with `data-agent-theme` or `data-chapter-theme` selectors.
@@ -84,18 +101,22 @@ automatic playback in browsers that do not expose the Web Animations API.
 overlay.
 
 - Options: `timeline`, `chapter`, `label`, `enabled`, `storageKey`, `placement`,
-  `controls`, `promptExport`
+  `controls`, `audioControls`, `promptExport`
 - Placements: `fixed` (overlay), `after-host` (document flow below the edited
   frame), and `frame-footer` (inside the host, above its navigation area)
 - Readouts: chapter, frame, duration, elapsed, remaining, frame range, total
   position and Play/Pause state
-- Control types: `select`, `toggle`, `number`
+- Control types: `select`, `toggle`, `number`, `action`
+- Audio controls add Enabled, Volume, Muted and Preview/Stop actions.
 - Methods: `setTimeline(timeline)`, `setEnabled(boolean)`,
   `setTimingVisible(boolean)`, `setControlValue(key, value)`,
   `getControlValues()`, `renderControls(controls)`, `generatePrompt(scope)`,
   `copyPrompt()`, `update()`, `destroy()`
 - The toggle preference persists in `localStorage` using `storageKey`.
 - The panel is not part of the scene tree and is hidden for print output.
+- While Edit Options is open, the top Debug close button closes the editor
+  drawer first and restores the normal readout. A second click can then collapse
+  the complete Debug panel.
 
 Each control accepts `key`, `label`, `type`, `value` and `onChange(value,
 control, debugOverlay)`. Select controls also accept `options`; number controls
@@ -113,5 +134,7 @@ Pass an object to customize `label`, `generateLabel`, `copyLabel`,
 `scope`, the current timeline `state`, live control `values`, `controls`,
 `chapter` and the overlay. Without a custom builder, Mellow Video creates a
 short reusable prompt containing timing, scope and every live editor setting.
+When `audioControls` is enabled, Prompt Export also includes the audio file,
+scope, enabled state, start time, live volume and mute state.
 
 The feature is discoverable through `MellowVideo.describe('debugMode')`.

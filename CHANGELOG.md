@@ -1,5 +1,33 @@
 # Changelog
 
+## [0.9.0] - 2026-08-31
+
+### Added
+
+- Per-frame `audioPlayback` (`once` or `loop`).
+- Reusable `audioEnd` and `audioDuration` trimming.
+- Live audio start/end/playback controls and current/clip/file timing readout.
+- Prompt Export metadata for playback mode, trim range, clip length and source duration.
+
+## [0.8.0] - 2026-08-31
+
+### Added
+
+- Frame-scoped audio sources, start times, volume and scope metadata.
+- Automatic audio stop when the next frame declares `audio: false`.
+- Reusable localized `requestAudioConsent()` gate for iPhone playback unlock.
+- Debug controls for audio Enabled, Volume, Muted and Preview/Stop.
+- Prompt Export audio metadata: file, scope, state, start, volume and mute.
+- Reusable Action control type for live editor commands.
+
+## [0.7.2] - 2026-08-31
+
+### Fixed
+
+- Closing the open Edit Options drawer now returns to the normal frame-footer
+  readout instead of collapsing Debug Mode into the right-side chip.
+- The complete Debug panel collapses only when its editor drawer is already closed.
+
 ## [0.7.1] - 2026-08-31
 
 ### Fixed

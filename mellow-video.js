@@ -26,6 +26,8 @@
       this.timer=0;
       this.frameStartedAt=0;
       this.frozenElapsed=0;
+      this.audioTimeHandler=()=>this.enforceAudioRange();
+      if(this.options.audio)this.options.audio.addEventListener('timeupdate',this.audioTimeHandler);
       host.classList.add('is-mellow-frame-timeline');
       this.goTo(0,{play:this.playing,seek:true});
     }
@@ -58,12 +60,37 @@
         });
       }
       this.host.dataset.mellowFrame=String(index);
-      if(seek&&this.options.audio){
-        try{this.options.audio.currentTime=frame.start;if(this.playing)this.options.audio.play().catch(()=>{});else this.options.audio.pause()}catch(error){}
+      if(this.options.audio&&(seek||frame.audioSrc!==undefined||frame.audio===false)){
+        try{
+          const audio=this.options.audio;
+          if(frame.audio===false)audio.pause();
+          else{
+            if(frame.audioSrc&&audio.getAttribute('src')!==frame.audioSrc){audio.src=frame.audioSrc;audio.load()}
+            if(frame.audioVolume!==undefined)audio.volume=Math.max(0,Math.min(1,Number(frame.audioVolume)));
+            audio.loop=false;
+            audio.currentTime=frame.audioStart!==undefined?Number(frame.audioStart):frame.audioSrc?0:frame.start;
+            if(this.playing)audio.play().catch(()=>{});else audio.pause();
+          }
+        }catch(error){}
       }
       if(this.options.onChange)this.options.onChange(frame,this);
       if(this.playing)this.timer=setTimeout(()=>this.goTo(index+1,{play:true,seek:false}),frame.duration);
       return this;
+    }
+
+    enforceAudioRange(){
+      const audio=this.options.audio;
+      const frame=this.frames[this.index];
+      if(!audio||!frame||frame.audio===false)return;
+      const start=Math.max(0,Number(frame.audioStart||0));
+      const naturalEnd=Number.isFinite(audio.duration)?audio.duration:Infinity;
+      const configuredEnd=frame.audioEnd!==undefined?Number(frame.audioEnd):frame.audioDuration!==undefined?start+Number(frame.audioDuration):naturalEnd;
+      const end=Math.max(start,Math.min(naturalEnd,configuredEnd));
+      if(audio.currentTime+0.025<end)return;
+      if(frame.audioLoop===true||frame.audioPlayback==='loop'){
+        audio.currentTime=start;
+        if(this.playing||frame.audioPreviewing)audio.play().catch(()=>{});
+      }else audio.pause();
     }
 
     next(){return this.goTo(this.index+1,{play:this.playing,seek:true})}
@@ -79,7 +106,7 @@
     }
     recalculate(){let cursor=0;this.frames.forEach(frame=>{frame.start=cursor/1000;cursor+=frame.duration});this.totalDuration=cursor;return this}
     setFrameDuration(index,duration){const frame=this.frames[index];if(!frame)return this;frame.duration=Math.max(100,Number(duration)||100);this.recalculate();if(index===this.index)this.goTo(index,{play:this.playing,seek:false});return this}
-    destroy(){clearTimeout(this.timer);this.host.classList.remove('is-mellow-frame-timeline');delete this.host.dataset.mellowFrame;this.elements.forEach(element=>element.classList.remove('is-mellow-frame-active'))}
+    destroy(){clearTimeout(this.timer);if(this.options.audio)this.options.audio.removeEventListener('timeupdate',this.audioTimeHandler);this.host.classList.remove('is-mellow-frame-timeline');delete this.host.dataset.mellowFrame;this.elements.forEach(element=>element.classList.remove('is-mellow-frame-active'))}
   }
 
   class MellowDebugOverlay{
@@ -101,9 +128,13 @@
       if(this.options.placement==='after-host')this.host.insertAdjacentElement('afterend',panel);
       else if(this.options.placement==='frame-footer')this.host.append(panel);
       else document.body.append(panel);
-      panel.querySelector('button').addEventListener('click',()=>this.setEnabled(!this.enabled));
+      panel.querySelector('button').addEventListener('click',()=>{
+        const editor=panel.querySelector('details');
+        if(editor?.open){editor.open=false;return}
+        this.setEnabled(!this.enabled);
+      });
       this.panel=panel;
-      this.renderControls(this.options.controls||[]);
+      this.renderControls(this.withAudioControls(this.options.controls||[]));
       this.renderPromptExport(this.options.promptExport||false);
       this.setEnabled(this.enabled,false);
     }
@@ -115,6 +146,24 @@
       return `${String(minutes).padStart(2,'0')}:${String(seconds).padStart(2,'0')}.${String(hundredths).padStart(2,'0')}`;
     }
     setTimeline(timeline){this.timeline=timeline;return this}
+    withAudioControls(controls=[]){
+      const config=this.options.audioControls;
+      if(!config)return controls;
+      this.audioControls=config===true?{}:config;
+      const audio=this.audioControls.audio||this.timeline?.options?.audio;
+      if(!audio)return controls;
+      const current=this.timeline?.frames?.[this.timeline.index];
+      return [...controls,
+        {key:'audioEnabled',label:this.audioControls.enabledLabel||'AUDIO ENABLED',type:'toggle',value:current?.audio!==false,onChange:value=>{const frame=this.timeline?.frames?.[this.timeline.index];if(frame)frame.audio=Boolean(value);if(!value)audio.pause();if(this.audioControls.onChange)this.audioControls.onChange('enabled',value,this)}},
+        {key:'audioVolume',label:this.audioControls.volumeLabel||'AUDIO VOLUME',type:'number',value:audio.volume,min:0,max:1,step:.05,onChange:value=>{audio.volume=Math.max(0,Math.min(1,Number(value)));if(this.audioControls.onChange)this.audioControls.onChange('volume',audio.volume,this)}},
+        {key:'audioMuted',label:this.audioControls.mutedLabel||'AUDIO MUTED',type:'toggle',value:audio.muted,onChange:value=>{audio.muted=Boolean(value);if(this.audioControls.onChange)this.audioControls.onChange('muted',audio.muted,this)}},
+        {key:'audioPlayback',label:this.audioControls.playbackLabel||'AUDIO PLAYBACK',type:'select',value:current?.audioPlayback||'once',options:[{value:'once',label:'PLAY ONCE'},{value:'loop',label:'LOOP'}],onChange:value=>{const frame=this.timeline?.frames?.[this.timeline.index];if(frame){frame.audioPlayback=value;frame.audioLoop=value==='loop'}if(this.audioControls.onChange)this.audioControls.onChange('playback',value,this)}},
+        {key:'audioStart',label:this.audioControls.startLabel||'AUDIO START (S)',type:'number',value:Number(current?.audioStart||0),min:0,step:.1,onChange:value=>{const frame=this.timeline?.frames?.[this.timeline.index];if(frame)frame.audioStart=Math.max(0,Number(value)||0);if(this.audioControls.onChange)this.audioControls.onChange('start',value,this)}},
+        {key:'audioEnd',label:this.audioControls.endLabel||'AUDIO END (S)',type:'number',value:current?.audioEnd??'',min:0,step:.1,onChange:value=>{const frame=this.timeline?.frames?.[this.timeline.index];if(frame)frame.audioEnd=Math.max(Number(frame.audioStart||0),Number(value)||0);if(this.audioControls.onChange)this.audioControls.onChange('end',value,this)}},
+        {key:'audioTiming',label:this.audioControls.timingLabel||'AUDIO TIME',type:'readout',value:'00:00.00 / --:--.--'},
+        {key:'audioPreview',label:this.audioControls.previewLabel||'AUDIO PREVIEW',type:'action',actionLabel:this.audioControls.previewActionLabel||'PLAY / STOP',onChange:()=>this.previewAudio()}
+      ];
+    }
     renderControls(controls=[]){
       this.controls=controls;
       const root=this.panel.querySelector('.mellow-debug-controls');
@@ -128,19 +177,43 @@
           input=document.createElement('select');
           (control.options||[]).forEach(option=>{const item=document.createElement('option');const value=typeof option==='object'?option.value:option;item.value=value;item.textContent=typeof option==='object'?option.label:option;input.append(item)});
           input.value=control.value;
+        }else if(control.type==='action'){
+          input=document.createElement('button');input.type='button';input.textContent=control.actionLabel||'RUN';input.className='mellow-debug-action';
+        }else if(control.type==='readout'){
+          input=document.createElement('output');input.textContent=control.value||'—';input.className='mellow-debug-readout';
         }else{
           input=document.createElement('input');input.type=control.type==='toggle'?'checkbox':'number';
           if(control.type==='toggle')input.checked=Boolean(control.value);else{input.value=control.value;if(control.min!==undefined)input.min=control.min;if(control.max!==undefined)input.max=control.max;if(control.step!==undefined)input.step=control.step}
         }
-        const commit=()=>{const value=control.type==='toggle'?input.checked:control.type==='number'?Number(input.value):input.value;control.value=value;if(control.onChange)control.onChange(value,control,this)};
-        input.addEventListener('change',commit);
+        const commit=()=>{const value=control.type==='action'?true:control.type==='toggle'?input.checked:control.type==='number'?Number(input.value):input.value;control.value=value;if(control.onChange)control.onChange(value,control,this)};
+        if(control.type!=='readout')input.addEventListener(control.type==='action'?'click':'change',commit);
         if(control.type==='number')input.addEventListener('keydown',event=>{if(event.key==='Enter'){event.preventDefault();commit();input.blur()}});
         row.append(text,input);root.append(row);
       });
       return this;
     }
-    setControlValue(key,value){const control=this.controls?.find(item=>item.key===key);const input=this.panel.querySelector(`[data-control="${key}"] input,[data-control="${key}"] select`);if(control)control.value=value;if(input){if(input.type==='checkbox')input.checked=Boolean(value);else input.value=value}return this}
-    getControlValues(){return Object.fromEntries((this.controls||[]).map(control=>[control.key,control.value]))}
+    setControlValue(key,value){const control=this.controls?.find(item=>item.key===key);const input=this.panel.querySelector(`[data-control="${key}"] input,[data-control="${key}"] select,[data-control="${key}"] output`);if(control)control.value=value;if(input){if(input.type==='checkbox')input.checked=Boolean(value);else if(input.tagName==='OUTPUT')input.textContent=value;else input.value=value}return this}
+    getControlValues(){return Object.fromEntries((this.controls||[]).filter(control=>!['action','readout'].includes(control.type)).map(control=>[control.key,control.value]))}
+    getAudioState(){
+      const audio=this.audioControls?.audio||this.timeline?.options?.audio;
+      const frame=this.timeline?.frames?.[this.timeline.index];
+      if(!audio||!frame)return null;
+      const source=frame.audioSrc||audio.getAttribute('src')||'';
+      const start=Number(frame.audioStart||0);const end=frame.audioEnd!==undefined?Number(frame.audioEnd):frame.audioDuration!==undefined?start+Number(frame.audioDuration):Number.isFinite(audio.duration)?audio.duration:null;
+      return {enabled:frame.audio!==false,source,file:source.split(/[\\/]/).pop()||'',scope:frame.audioScope||this.audioControls?.scope||'frame',start,end,duration:end===null?null:Math.max(0,end-start),playback:frame.audioPlayback||(frame.audioLoop?'loop':'once'),current:audio.currentTime,sourceDuration:Number.isFinite(audio.duration)?audio.duration:null,volume:audio.volume,muted:audio.muted};
+    }
+    async previewAudio(){
+      const audio=this.audioControls?.audio||this.timeline?.options?.audio;
+      const frame=this.timeline?.frames?.[this.timeline.index];
+      if(!audio||!frame||frame.audio===false)return false;
+      if(!audio.paused){audio.pause();frame.audioPreviewing=false;return false}
+      try{
+        if(frame.audioSrc&&audio.getAttribute('src')!==frame.audioSrc){audio.src=frame.audioSrc;audio.load()}
+        audio.currentTime=Number(frame.audioStart||0);
+        frame.audioPreviewing=true;await audio.play();
+        return true;
+      }catch(error){return false}
+    }
     renderPromptExport(config=false){
       this.promptExport=config===true?{}:config||null;
       if(!this.promptExport)return this;
@@ -166,8 +239,10 @@
     }
     defaultPrompt({scope,state,values}){
       const scopeText=scope==='chapter'?'the complete chapter':scope==='moment'?`the exact timeline moment at ${(state.totalElapsed/1000).toFixed(2)} seconds`:`only frame ${String(state.index).padStart(2,'0')} of ${String(state.count-1).padStart(2,'0')}`;
-      const settings=(this.controls||[]).map(control=>`- ${control.label||control.key}: ${values[control.key]}`).join('\n');
-      return `Create or update a Mellow Video scene for ${scopeText}.\nChapter: ${this.options.chapter}\nFrame duration: ${(state.duration/1000).toFixed(3)} seconds\nFrame range: ${(state.start).toFixed(2)}s to ${(state.end).toFixed(2)}s\nApply these live editor settings:\n${settings}\nKeep the sequence responsive on desktop and iPhone, preserve unrelated frames, and use MellowVideo FrameTimeline, themes and effects so the result remains reusable.`;
+      const settings=(this.controls||[]).filter(control=>!['action','readout'].includes(control.type)).map(control=>`- ${control.label||control.key}: ${values[control.key]}`).join('\n');
+      const audio=this.getAudioState();
+      const audioText=audio?`\nAudio source: ${audio.file||audio.source||'none'}\nAudio scope: ${audio.scope}\nAudio enabled: ${audio.enabled}\nAudio playback: ${audio.playback}\nAudio start: ${audio.start.toFixed(2)}s\nAudio end: ${audio.end===null?'source end':audio.end.toFixed(2)+'s'}\nAudio clip duration: ${audio.duration===null?'source duration':audio.duration.toFixed(2)+'s'}\nAudio source duration: ${audio.sourceDuration===null?'not loaded':audio.sourceDuration.toFixed(2)+'s'}\nAudio volume: ${audio.volume}\nAudio muted: ${audio.muted}`:'';
+      return `Create or update a Mellow Video scene for ${scopeText}.\nChapter: ${this.options.chapter}\nFrame duration: ${(state.duration/1000).toFixed(3)} seconds\nFrame range: ${(state.start).toFixed(2)}s to ${(state.end).toFixed(2)}s${audioText}\nApply these live editor settings:\n${settings}\nKeep the sequence responsive on desktop and iPhone, preserve unrelated frames, and use MellowVideo FrameTimeline, themes, effects and frame-scoped audio so the result remains reusable.`;
     }
     generatePrompt(scope){
       if(!this.promptRoot||!this.timeline)return '';
@@ -205,25 +280,58 @@
       this.panel.querySelector('[data-debug-range]').textContent=`RANGE ${this.format(state.start*1000)} → ${this.format(state.end*1000)}`;
       this.panel.querySelector('[data-debug-total]').textContent=`TOTAL ${this.format(state.totalElapsed)} / ${this.format(state.totalDuration)}`;
       this.panel.querySelector('i em').style.width=`${Math.min(100,state.elapsed/state.duration*100)}%`;
+      if(this.audioControls&&this.audioControlFrame!==state.index){this.audioControlFrame=state.index;const frame=this.timeline.frames[state.index];this.setControlValue('audioEnabled',frame?.audio!==false);this.setControlValue('audioPlayback',frame?.audioPlayback||(frame?.audioLoop?'loop':'once'));this.setControlValue('audioStart',Number(frame?.audioStart||0));this.setControlValue('audioEnd',frame?.audioEnd??'')}
+      if(this.audioControls){const audio=this.audioControls.audio||this.timeline?.options?.audio;if(audio){const frame=this.timeline.frames[state.index];const start=Number(frame?.audioStart||0);const end=frame?.audioEnd!==undefined?Number(frame.audioEnd):frame?.audioDuration!==undefined?start+Number(frame.audioDuration):audio.duration;const current=Math.max(0,audio.currentTime-start);const clip=Number.isFinite(end)?Math.max(0,end-start):0;const total=Number.isFinite(audio.duration)?audio.duration:0;this.setControlValue('audioTiming',`${this.format(current*1000)} / ${clip?this.format(clip*1000):'--:--.--'} · FILE ${total?this.format(total*1000):'--:--.--'}`)}}
     }
     tick(){this.update();this.raf=requestAnimationFrame(()=>this.tick())}
     destroy(){cancelAnimationFrame(this.raf);if(this.panel)this.panel.remove()}
   }
 
+  class MellowAudioGate{
+    constructor(options={}){
+      this.options={language:'en',host:document.body,...options};
+      this.language=this.options.language;
+      this.whenChosen=new Promise(resolve=>{this.resolveChoice=resolve});
+      this.mount();
+    }
+    copy(){
+      const defaults={
+        en:{kicker:'A SOUND-LED JOURNEY',title:'Turn on sound for the full experience?',body:'Music and frame audio bring the sequence to life.',enable:'♫  Enable audio',skip:'Continue without sound',note:'You can change this anytime in Debug Mode.'},
+        ru:{kicker:'ЗВУКОВОЕ ПУТЕШЕСТВИЕ',title:'Включить звук для полного погружения?',body:'Музыка и звук кадров оживляют всю сцену.',enable:'♫  Включить звук',skip:'Продолжить без звука',note:'Вы сможете изменить выбор в Debug Mode.'}
+      };
+      return {...defaults[this.language]||defaults.en,...(this.options.copy?.[this.language]||{})};
+    }
+    mount(){
+      const gate=document.createElement('section');gate.className='mellow-audio-gate';gate.setAttribute('role','dialog');gate.setAttribute('aria-modal','true');gate.setAttribute('aria-labelledby','mellow-audio-gate-title');
+      gate.innerHTML='<div class="mellow-audio-card"><div class="mellow-audio-orbit" aria-hidden="true"><i></i><i></i><span>♫</span></div><p data-audio-kicker></p><h2 id="mellow-audio-gate-title"></h2><p data-audio-copy></p><div class="mellow-audio-actions"><button type="button" data-audio-enable></button><button type="button" data-audio-skip></button></div><small data-audio-note></small></div>';
+      this.options.host.append(gate);this.element=gate;this.render();
+      gate.querySelector('[data-audio-enable]').addEventListener('click',()=>this.choose(true));
+      gate.querySelector('[data-audio-skip]').addEventListener('click',()=>this.choose(false));
+      requestAnimationFrame(()=>gate.classList.add('is-visible'));
+      gate.querySelector('[data-audio-enable]').focus();
+    }
+    render(){const copy=this.copy();this.element.querySelector('[data-audio-kicker]').textContent=copy.kicker;this.element.querySelector('h2').textContent=copy.title;this.element.querySelector('[data-audio-copy]').textContent=copy.body;this.element.querySelector('[data-audio-enable]').textContent=copy.enable;this.element.querySelector('[data-audio-skip]').textContent=copy.skip;this.element.querySelector('[data-audio-note]').textContent=copy.note;return this}
+    setLanguage(language){this.language=language;return this.render()}
+    choose(enabled){if(this.choice!==undefined)return this;this.choice=Boolean(enabled);if(this.options.onChoice)this.options.onChoice(this.choice,this);this.resolveChoice(this.choice);this.destroy();return this}
+    destroy(){if(this.element)this.element.remove()}
+  }
+
   class MellowVideo{
-    static VERSION='0.7.1';
+    static VERSION='0.9.0';
     static AGENT_THEMES=['claude-code','vscode'];
     static AGENT_EFFECTS=['none','prompt-zoom','prompt-pan'];
     static CHAPTER_CARD_THEMES=['comic-cyber','cinematic-dark'];
     static CHAPTER_CARD_EFFECTS=['none','panel-slam'];
     static FrameTimeline=MellowFrameTimeline;
     static DebugOverlay=MellowDebugOverlay;
+    static AudioGate=MellowAudioGate;
     static CAPABILITIES=Object.freeze({
       presentation:{method:'show',modes:['story','cinematic-subtitles','cyberpunk-title']},
       agentWindow:{method:'agentWindowMarkup',themes:['claude-code','vscode'],effects:['none','prompt-zoom','prompt-pan'],options:['theme','effect','duration','agent','files','earlier','earlierLabel','previousReply','prompt','accepted','working','footer']},
       chapterCard:{method:'chapterCardMarkup',optional:true,themes:['comic-cyber','cinematic-dark'],effects:['none','panel-slam'],options:['theme','effect','duration','eyebrow','title','subtitle','badge','accent','contrast']},
-      frameTimeline:{method:'createFrameTimeline',options:['selector','frames','audio','autoplay','loop','onChange','onComplete'],controls:['goTo','next','previous','play','pause','setPlaying','recalculate','setFrameDuration','destroy'],audioSeek:true}
-      ,debugMode:{method:'enableDebug',options:['timeline','chapter','label','storageKey','enabled','placement','controls','promptExport'],placements:['fixed','after-host','frame-footer'],controlTypes:['select','toggle','number'],promptScopes:['frame','chapter','moment'],methods:['setTimeline','setEnabled','setTimingVisible','setControlValue','getControlValues','renderControls','generatePrompt','copyPrompt','destroy'],readouts:['chapter','frame','frameDuration','elapsed','remaining','range','total','playState'],toggle:true}
+      audioGate:{method:'requestAudioConsent',options:['language','host','copy','onChoice'],methods:['setLanguage','choose','destroy'],returnsChoicePromise:true},
+      frameTimeline:{method:'createFrameTimeline',options:['selector','frames','audio','autoplay','loop','onChange','onComplete'],frameAudioOptions:['audio','audioSrc','audioStart','audioEnd','audioDuration','audioPlayback','audioLoop','audioVolume','audioScope'],controls:['goTo','next','previous','play','pause','setPlaying','recalculate','setFrameDuration','destroy'],audioSeek:true,audioTrim:true,audioLoop:true,frameScopedAudio:true}
+      ,debugMode:{method:'enableDebug',options:['timeline','chapter','label','storageKey','enabled','placement','controls','audioControls','promptExport'],placements:['fixed','after-host','frame-footer'],controlTypes:['select','toggle','number','action','readout'],promptScopes:['frame','chapter','moment'],methods:['setTimeline','setEnabled','setTimingVisible','setControlValue','getControlValues','getAudioState','previewAudio','renderControls','generatePrompt','copyPrompt','destroy'],readouts:['chapter','frame','frameDuration','elapsed','remaining','range','total','playState','audioCurrent','audioClipDuration','audioSourceDuration'],toggle:true}
     });
 
     static describe(feature){
@@ -238,6 +346,10 @@
 
     static enableDebug(host,options={}){
       return new MellowDebugOverlay(host,options);
+    }
+
+    static requestAudioConsent(options={}){
+      return new MellowAudioGate(options);
     }
 
     static escape(value=''){

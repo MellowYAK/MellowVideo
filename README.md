@@ -1,10 +1,22 @@
 # Mellow Video
 
 Mellow Video is a dependency-free presentation layer for timed visual stories.
-It does not control audio, timing or navigation. Mellow Story Teller owns those
-jobs; Mellow Video decides how the active scene's words appear.
+It coordinates reusable frame timing, presentation, navigation and optional
+frame-scoped audio while the host application remains in control.
 
-Current version: **0.7.1**
+Current version: **0.9.0**
+
+## Audio clips
+
+Each frame can choose whether audio plays once or loops and can trim a reusable segment from a longer source:
+
+~~~js
+{ audio: true, audioSrc: 'audio/scene.mp3', audioStart: 4.2,
+  audioEnd: 9.7, audioPlayback: 'loop', audioVolume: 0.35,
+  audioScope: 'frame' }
+~~~
+
+Use `audioDuration` instead of `audioEnd` for a relative clip length. Debug Mode exposes playback, start, end, volume, mute, preview and a live `played / clip · file` readout. Prompt Export records every value.
 
 ## Clone
 
@@ -41,6 +53,11 @@ GitHub CLI.
 - **Prompt Export** — the Debug Dashboard can generate and copy a reusable
   model prompt from the current live settings. Export only the current frame,
   the complete chapter, or the exact timeline moment.
+- **Frame audio** — attach a source, start time, volume and scope to an
+  individual frame. Debug Mode can enable, mute, change volume and preview it.
+- **Audio consent gate** — an EN/RU-ready, iPhone-safe choice shown before a
+  sequence begins, allowing sound or silent playback from a browser-approved
+  user gesture.
 
 The original host markup is preserved, so changing modes is reversible.
 

@@ -1,5 +1,9 @@
 # Mellow Video usage guide
 
+## Play once, loop, or trim frame audio
+
+Use `audioPlayback: 'once'` for a one-shot cue or `audioPlayback: 'loop'` for a repeating bed. Trim a long source with `audioStart` and either `audioEnd` or `audioDuration`. The Debug editor previews changes live and displays current playback time, selected clip duration and full file duration. Generate Prompt records the exact configuration so another tool can reproduce it without guessing.
+
 ## Load
 
 ~~~html
@@ -134,8 +138,8 @@ right and left controls can then move one frame instead of one chapter.
 const timeline = MellowVideo.createFrameTimeline(chapterElement, {
   selector: '.cinematic-step',
   frames: [
-    { duration: 3000 }, // scene 0
-    { duration: 5000 },
+    { duration: 3000, audio: true, audioSrc: 'audio/scene-00.mp3', audioStart: 0, audioVolume: .35, audioScope: 'frame' },
+    { duration: 5000, audio: false },
     { duration: 5000 },
     { duration: 2500 }
   ],
@@ -157,6 +161,30 @@ element is supplied, `next()`, `previous()` and `goTo()` seek to that exact
 position. Nested frame transitions restart once per visit instead of looping
 and flashing back to their initial state.
 
+`audio: false` stops a previous frame-owned clip. This keeps a short sound cue
+from leaking into the next scene during automatic or manual navigation.
+
+## Ask for audio before playback
+
+Create the gate while the timeline is paused, then start playback from the
+visitor's browser-approved choice:
+
+~~~js
+const gate = MellowVideo.requestAudioConsent({
+  language: 'en',
+  onChoice(enabled) {
+    timeline.frames[0].audio = enabled;
+    audio.muted = !enabled;
+    timeline.play();
+  }
+});
+
+languageButton.onclick = () => gate.setLanguage('ru');
+~~~
+
+Enable Audio unlocks mobile Safari playback. Continue without sound uses the
+same visual timeline and leaves audio available for later activation.
+
 ## Debug Mode
 
 Attach the development overlay to a timeline:
@@ -168,6 +196,7 @@ const debug = MellowVideo.enableDebug(storyHost, {
   label: 'MELLOW VIDEO',
   enabled: true,
   placement: 'frame-footer', // or 'after-host' / 'fixed'
+  audioControls: { audio, scope: 'frame' },
   promptExport: true,
   storageKey: 'my-project-video-debug',
   controls: [
@@ -223,11 +252,16 @@ and is anchored in that footer gap, so it remains visible without requiring the
 editor to discover an extra page below the fold. The host must be positioned
 (`position: relative`, `absolute`, `fixed` or `sticky`).
 
-Open `EDIT OPTIONS` to use the optional mini editor. Select, Toggle and Number
+Open `EDIT OPTIONS` to use the optional mini editor. Select, Toggle, Number and
+Action
 are generic control primitives, so a project can expose only the choices useful
 for that story: presentation mode, chat skin, animation preset, title visibility,
 timing visibility or current frame duration. Keep the list short and group
 advanced settings behind the collapsed editor.
+
+`audioControls` adds live Enabled, Volume, Muted and Preview/Stop controls.
+Prompt Export automatically records their values with the current frame's
+source, start time and scope.
 
 Use `debug.setTimeline(newTimeline)` after replacing a timeline, or
 `debug.setControlValue(key, value)` when navigation changes a live value. Use

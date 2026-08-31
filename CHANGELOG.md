@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.13.2] - 2026-08-31
+
+- Wait for frame audio to become playable before starting it.
+- Cancel stale audio starts when users skip quickly between frames.
+- Prevent intermittent missing frame sounds on iPhone and cold-cache loads.
+
 ## [0.13.1] - 2026-08-31
 
 - Wait for critical image decoding before dismissing the preload loader.

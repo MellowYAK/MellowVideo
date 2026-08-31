@@ -4,6 +4,8 @@
 
 Returns a queue with `load`, `preload`, `release`, `clear`, and `destroy`. Assets can be URLs or `{ url, type: 'image' | 'audio', critical }`. Critical images resolve only after `HTMLImageElement.decode()` completes. `preload(assets, { showLoader, label, minimumMs, timeoutMs, criticalTimeoutMs })` waits for critical media, lets optional media warm in the background, and reuses cached promises.
 
+`FrameTimeline` waits for `loadeddata`/`canplay` before starting a newly assigned frame sound. Pending starts are tokenized, so a late response from an earlier frame cannot interrupt the current frame.
+
 ## `createBackgroundTrack(audio, options)`
 
 Creates a continuous music controller with `src`, `volume`, `loop`, and `enabled`. Methods: `configure`, `play`, `pause`, `setEnabled`, `setVolume`, `setLoop`, `restart`, `getState`, and `destroy`. Use a separate `<audio>` element so frame effects and music can overlap independently.

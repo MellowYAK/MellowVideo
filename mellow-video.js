@@ -26,6 +26,7 @@
       this.timer=0;
       this.frameStartedAt=0;
       this.frozenElapsed=0;
+      this.audioLoadToken=0;
       this.audioTimeHandler=()=>this.enforceAudioRange();
       if(this.options.audio)this.options.audio.addEventListener('timeupdate',this.audioTimeHandler);
       host.classList.add('is-mellow-frame-timeline');
@@ -60,22 +61,26 @@
         });
       }
       this.host.dataset.mellowFrame=String(index);
-      if(this.options.audio&&(seek||frame.audioSrc!==undefined||frame.audio===false)){
-        try{
-          const audio=this.options.audio;
-          if(frame.audio===false)audio.pause();
-          else{
-            if(frame.audioSrc&&audio.getAttribute('src')!==frame.audioSrc){audio.src=frame.audioSrc;audio.load()}
-            if(frame.audioVolume!==undefined)audio.volume=Math.max(0,Math.min(1,Number(frame.audioVolume)));
-            audio.loop=false;
-            audio.currentTime=frame.audioStart!==undefined?Number(frame.audioStart):frame.audioSrc?0:frame.start;
-            if(this.playing)audio.play().catch(()=>{});else audio.pause();
-          }
-        }catch(error){}
-      }
+      if(this.options.audio&&(seek||frame.audioSrc!==undefined||frame.audio===false))this.prepareFrameAudio(frame);
       if(this.options.onChange)this.options.onChange(frame,this);
       if(this.playing)this.timer=setTimeout(()=>this.goTo(index+1,{play:true,seek:false}),frame.duration);
       return this;
+    }
+
+    async prepareFrameAudio(frame){
+      const audio=this.options.audio;if(!audio)return false;const token=++this.audioLoadToken;
+      if(frame.audio===false){audio.pause();return false}
+      try{
+        const sourceChanged=frame.audioSrc&&audio.getAttribute('src')!==frame.audioSrc;
+        if(sourceChanged){audio.pause();audio.src=frame.audioSrc;audio.load()}
+        if(frame.audioVolume!==undefined)audio.volume=Math.max(0,Math.min(1,Number(frame.audioVolume)));
+        audio.loop=false;
+        if(audio.readyState<2)await new Promise(resolve=>{let settled=false;const done=()=>{if(settled)return;settled=true;audio.removeEventListener('canplay',done);audio.removeEventListener('loadeddata',done);audio.removeEventListener('error',done);resolve()};audio.addEventListener('canplay',done,{once:true});audio.addEventListener('loadeddata',done,{once:true});audio.addEventListener('error',done,{once:true});setTimeout(done,3500)});
+        if(token!==this.audioLoadToken||this.frames[this.index]!==frame)return false;
+        audio.currentTime=frame.audioStart!==undefined?Number(frame.audioStart):frame.audioSrc?0:frame.start;
+        if(this.playing){await audio.play();return true}
+        audio.pause();return false;
+      }catch(error){return false}
     }
 
     enforceAudioRange(){
@@ -96,7 +101,7 @@
     next(){return this.goTo(this.index+1,{play:this.playing,seek:true})}
     previous(){return this.goTo(this.index-1,{play:this.playing,seek:true})}
     play(){this.playing=true;return this.goTo(this.index,{play:true,seek:false})}
-    pause(){this.frozenElapsed=Math.min(this.frames[this.index]?.duration||0,performance.now()-this.frameStartedAt);this.playing=false;clearTimeout(this.timer);if(this.options.audio)this.options.audio.pause();return this}
+    pause(){this.frozenElapsed=Math.min(this.frames[this.index]?.duration||0,performance.now()-this.frameStartedAt);this.playing=false;this.audioLoadToken+=1;clearTimeout(this.timer);if(this.options.audio)this.options.audio.pause();return this}
     setPlaying(playing){return playing?this.play():this.pause()}
     getState(){
       const frame=this.frames[this.index];
@@ -106,7 +111,7 @@
     }
     recalculate(){let cursor=0;this.frames.forEach(frame=>{frame.start=cursor/1000;cursor+=frame.duration});this.totalDuration=cursor;return this}
     setFrameDuration(index,duration){const frame=this.frames[index];if(!frame)return this;frame.duration=Math.max(100,Number(duration)||100);this.recalculate();if(index===this.index)this.goTo(index,{play:this.playing,seek:false});return this}
-    destroy(){clearTimeout(this.timer);if(this.options.audio)this.options.audio.removeEventListener('timeupdate',this.audioTimeHandler);this.host.classList.remove('is-mellow-frame-timeline');delete this.host.dataset.mellowFrame;this.elements.forEach(element=>element.classList.remove('is-mellow-frame-active'))}
+    destroy(){clearTimeout(this.timer);this.audioLoadToken+=1;if(this.options.audio)this.options.audio.removeEventListener('timeupdate',this.audioTimeHandler);this.host.classList.remove('is-mellow-frame-timeline');delete this.host.dataset.mellowFrame;this.elements.forEach(element=>element.classList.remove('is-mellow-frame-active'))}
   }
 
   class MellowDebugOverlay{
@@ -384,7 +389,7 @@
   }
 
   class MellowVideo{
-    static VERSION='0.13.1';
+    static VERSION='0.13.2';
     static AGENT_THEMES=['claude-code','vscode'];
     static AGENT_EFFECTS=['none','prompt-zoom','prompt-pan'];
     static CHAPTER_CARD_THEMES=['comic-cyber','cinematic-dark'];
@@ -408,7 +413,7 @@
       thoughtBubble:{method:'styleThoughtBubble',className:'mellow-thought-bubble',keepsTextInHTML:true},
       backgroundTrack:{method:'createBackgroundTrack',options:['src','volume','loop','enabled'],methods:['configure','play','pause','setEnabled','setVolume','setLoop','restart','getState','destroy'],continuousAcrossFrames:true,separateFromFrameAudio:true,requiresUserGesture:true},
       preloadQueue:{method:'createPreloadQueue',options:['host','minimumMs','timeoutMs','label'],assetTypes:['image','audio'],methods:['load','preload','release','clear','destroy'],cacheAware:true,preloadAhead:true,releaseBehind:true},
-      frameTimeline:{method:'createFrameTimeline',options:['selector','frames','audio','autoplay','loop','onChange','onComplete'],frameAudioOptions:['audio','audioSrc','audioStart','audioEnd','audioDuration','audioPlayback','audioLoop','audioVolume','audioScope'],controls:['goTo','next','previous','play','pause','setPlaying','recalculate','setFrameDuration','destroy'],audioSeek:true,audioTrim:true,audioLoop:true,frameScopedAudio:true}
+      frameTimeline:{method:'createFrameTimeline',options:['selector','frames','audio','autoplay','loop','onChange','onComplete'],frameAudioOptions:['audio','audioSrc','audioStart','audioEnd','audioDuration','audioPlayback','audioLoop','audioVolume','audioScope'],controls:['goTo','next','previous','play','pause','setPlaying','recalculate','setFrameDuration','destroy'],audioSeek:true,audioTrim:true,audioLoop:true,frameScopedAudio:true,waitsForCanPlay:true,raceSafeAudioSwitching:true}
       ,debugMode:{method:'enableDebug',options:['timeline','chapter','label','storageKey','enabled','placement','controls','audioControls','backgroundTrack','promptExport'],placements:['fixed','after-host','frame-footer'],controlTypes:['select','toggle','number','action','readout'],promptScopes:['frame','chapter','moment'],methods:['setTimeline','setEnabled','setTimingVisible','setControlValue','getControlValues','getAudioState','getBackgroundTrackState','previewAudio','renderControls','generatePrompt','copyPrompt','destroy'],readouts:['chapter','frame','frameDuration','elapsed','remaining','range','total','playState','audioCurrent','audioClipDuration','audioSourceDuration'],toggle:true}
     });
 

@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.10.0] - 2026-08-31
+
+### Added
+
+- Reusable `applySpeakerMotion()` character animation.
+- Gentle and expressive talking presets with intensity and speed controls.
+- Optional feathered mask and transform origin for isolating a person from a still image.
+- Reduced-motion fallback and capability discovery metadata.
+
 ## [0.9.0] - 2026-08-31
 
 ### Added

@@ -4,7 +4,22 @@ Mellow Video is a dependency-free presentation layer for timed visual stories.
 It coordinates reusable frame timing, presentation, navigation and optional
 frame-scoped audio while the host application remains in control.
 
-Current version: **0.9.0**
+Current version: **0.10.0**
+
+## Speaker motion
+
+Create subtle, reusable character movement without shaking the whole scene:
+
+~~~js
+const motion = MellowVideo.applySpeakerMotion(frame, {
+  selector: '.character-image', preset: 'gentle-talk',
+  intensity: 1, speed: 1,
+  mask: 'radial-gradient(ellipse at 42% 58%, #000 30%, transparent 62%)',
+  origin: '42% 58%'
+});
+~~~
+
+Presets are `none`, `gentle-talk`, and `expressive-talk`. The effect clones only the selected visual layer and supports a feathered mask, so captions and surrounding UI remain stable.
 
 ## Audio clips
 

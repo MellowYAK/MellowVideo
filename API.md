@@ -1,5 +1,9 @@
 # Mellow Video public API
 
+## `applySpeakerMotion(host, options)`
+
+Adds organic movement to one selected visual layer without moving the complete frame. Options: `selector`, `preset`, `intensity`, `speed`, `clipPath`, `mask`, and `origin`. Returns a controller with `update(options)` and `destroy()`. Presets: `none`, `gentle-talk`, `expressive-talk`.
+
 ## Frame audio range and playback
 
 Frames accept `audioSrc`, `audioStart`, `audioEnd`, `audioDuration`, `audioPlayback: 'once' | 'loop'`, `audioLoop`, `audioVolume`, and `audioScope`. `audioEnd` is an absolute source time; `audioDuration` is relative to `audioStart`. At the trim boundary playback stops or returns to `audioStart` according to playback mode.

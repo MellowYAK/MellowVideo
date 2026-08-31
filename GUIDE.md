@@ -1,5 +1,9 @@
 # Mellow Video usage guide
 
+## Animate a speaker naturally
+
+Use `applySpeakerMotion()` when a person in a still image should feel alive while speaking. Prefer `gentle-talk` for breathing, tiny posture shifts and restrained head movement. Use `expressive-talk` only when the scene needs more energy. A feathered `mask` isolates the character and prevents visible hard edges; keep intensity near `1` to avoid a shake effect. Expose preset, intensity and speed through Debug controls so Prompt Export can reproduce the selected look.
+
 ## Play once, loop, or trim frame audio
 
 Use `audioPlayback: 'once'` for a one-shot cue or `audioPlayback: 'loop'` for a repeating bed. Trim a long source with `audioStart` and either `audioEnd` or `audioDuration`. The Debug editor previews changes live and displays current playback time, selected clip duration and full file duration. Generate Prompt records the exact configuration so another tool can reproduce it without guessing.

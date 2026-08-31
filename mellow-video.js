@@ -316,8 +316,36 @@
     destroy(){if(this.element)this.element.remove()}
   }
 
+  class MellowSpeakerMotion{
+    constructor(host,options={}){
+      if(!host)throw new Error('MellowVideo.SpeakerMotion: a host element is required.');
+      this.host=host;
+      this.options={selector:'img',preset:'gentle-talk',intensity:1,speed:1,clipPath:'inset(0)',mask:'none',origin:'50% 50%',...options};
+      this.mount();
+    }
+    mount(){
+      this.destroy();
+      if(this.options.preset==='none')return this;
+      const source=this.host.querySelector(this.options.selector);
+      if(!source)return this;
+      const layer=source.cloneNode(true);
+      layer.removeAttribute('id');layer.removeAttribute('aria-label');layer.setAttribute('aria-hidden','true');
+      layer.className='mellow-speaker-layer';
+      layer.dataset.speakerMotion=this.options.preset;
+      layer.style.setProperty('--mellow-speaker-intensity',Math.max(0,Number(this.options.intensity)||0));
+      layer.style.setProperty('--mellow-speaker-speed',Math.max(.1,Number(this.options.speed)||1));
+      layer.style.setProperty('--mellow-speaker-clip',this.options.clipPath);
+      layer.style.setProperty('--mellow-speaker-mask',this.options.mask);
+      layer.style.setProperty('--mellow-speaker-origin',this.options.origin);
+      source.insertAdjacentElement('afterend',layer);this.layer=layer;this.host.classList.add('has-mellow-speaker-motion');
+      return this;
+    }
+    update(options={}){this.options={...this.options,...options};return this.mount()}
+    destroy(){if(this.layer)this.layer.remove();this.layer=null;this.host.classList.remove('has-mellow-speaker-motion');return this}
+  }
+
   class MellowVideo{
-    static VERSION='0.9.0';
+    static VERSION='0.10.0';
     static AGENT_THEMES=['claude-code','vscode'];
     static AGENT_EFFECTS=['none','prompt-zoom','prompt-pan'];
     static CHAPTER_CARD_THEMES=['comic-cyber','cinematic-dark'];
@@ -325,11 +353,14 @@
     static FrameTimeline=MellowFrameTimeline;
     static DebugOverlay=MellowDebugOverlay;
     static AudioGate=MellowAudioGate;
+    static SpeakerMotion=MellowSpeakerMotion;
+    static SPEAKER_MOTIONS=['none','gentle-talk','expressive-talk'];
     static CAPABILITIES=Object.freeze({
       presentation:{method:'show',modes:['story','cinematic-subtitles','cyberpunk-title']},
       agentWindow:{method:'agentWindowMarkup',themes:['claude-code','vscode'],effects:['none','prompt-zoom','prompt-pan'],options:['theme','effect','duration','agent','files','earlier','earlierLabel','previousReply','prompt','accepted','working','footer']},
       chapterCard:{method:'chapterCardMarkup',optional:true,themes:['comic-cyber','cinematic-dark'],effects:['none','panel-slam'],options:['theme','effect','duration','eyebrow','title','subtitle','badge','accent','contrast']},
       audioGate:{method:'requestAudioConsent',options:['language','host','copy','onChoice'],methods:['setLanguage','choose','destroy'],returnsChoicePromise:true},
+      speakerMotion:{method:'applySpeakerMotion',presets:['none','gentle-talk','expressive-talk'],options:['selector','preset','intensity','speed','clipPath','mask','origin'],methods:['update','destroy'],isolatedLayer:true,featheredMask:true,reducedMotionSafe:true},
       frameTimeline:{method:'createFrameTimeline',options:['selector','frames','audio','autoplay','loop','onChange','onComplete'],frameAudioOptions:['audio','audioSrc','audioStart','audioEnd','audioDuration','audioPlayback','audioLoop','audioVolume','audioScope'],controls:['goTo','next','previous','play','pause','setPlaying','recalculate','setFrameDuration','destroy'],audioSeek:true,audioTrim:true,audioLoop:true,frameScopedAudio:true}
       ,debugMode:{method:'enableDebug',options:['timeline','chapter','label','storageKey','enabled','placement','controls','audioControls','promptExport'],placements:['fixed','after-host','frame-footer'],controlTypes:['select','toggle','number','action','readout'],promptScopes:['frame','chapter','moment'],methods:['setTimeline','setEnabled','setTimingVisible','setControlValue','getControlValues','getAudioState','previewAudio','renderControls','generatePrompt','copyPrompt','destroy'],readouts:['chapter','frame','frameDuration','elapsed','remaining','range','total','playState','audioCurrent','audioClipDuration','audioSourceDuration'],toggle:true}
     });
@@ -350,6 +381,10 @@
 
     static requestAudioConsent(options={}){
       return new MellowAudioGate(options);
+    }
+
+    static applySpeakerMotion(host,options={}){
+      return new MellowSpeakerMotion(host,options);
     }
 
     static escape(value=''){

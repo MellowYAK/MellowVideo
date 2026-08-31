@@ -1,5 +1,9 @@
 # Mellow Video public API
 
+## `createBackgroundTrack(audio, options)`
+
+Creates a continuous music controller with `src`, `volume`, `loop`, and `enabled`. Methods: `configure`, `play`, `pause`, `setEnabled`, `setVolume`, `setLoop`, `restart`, `getState`, and `destroy`. Use a separate `<audio>` element so frame effects and music can overlap independently.
+
 ## Camera motion and thought bubbles
 
 `applyCameraMotion(host, { selector, preset, intensity, duration, origin })` returns an updatable controller. Presets are `none`, `anime-thought-zoom`, and `slow-focus-push`. `styleThoughtBubble(element)` adds the reusable `mellow-thought-bubble` class without rasterizing its text.

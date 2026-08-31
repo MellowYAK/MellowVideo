@@ -202,6 +202,7 @@
       const start=Number(frame.audioStart||0);const end=frame.audioEnd!==undefined?Number(frame.audioEnd):frame.audioDuration!==undefined?start+Number(frame.audioDuration):Number.isFinite(audio.duration)?audio.duration:null;
       return {enabled:frame.audio!==false,source,file:source.split(/[\\/]/).pop()||'',scope:frame.audioScope||this.audioControls?.scope||'frame',start,end,duration:end===null?null:Math.max(0,end-start),playback:frame.audioPlayback||(frame.audioLoop?'loop':'once'),current:audio.currentTime,sourceDuration:Number.isFinite(audio.duration)?audio.duration:null,volume:audio.volume,muted:audio.muted};
     }
+    getBackgroundTrackState(){return this.options.backgroundTrack?.getState?.()||null}
     async previewAudio(){
       const audio=this.audioControls?.audio||this.timeline?.options?.audio;
       const frame=this.timeline?.frames?.[this.timeline.index];
@@ -242,7 +243,8 @@
       const settings=(this.controls||[]).filter(control=>!['action','readout'].includes(control.type)).map(control=>`- ${control.label||control.key}: ${values[control.key]}`).join('\n');
       const audio=this.getAudioState();
       const audioText=audio?`\nAudio source: ${audio.file||audio.source||'none'}\nAudio scope: ${audio.scope}\nAudio enabled: ${audio.enabled}\nAudio playback: ${audio.playback}\nAudio start: ${audio.start.toFixed(2)}s\nAudio end: ${audio.end===null?'source end':audio.end.toFixed(2)+'s'}\nAudio clip duration: ${audio.duration===null?'source duration':audio.duration.toFixed(2)+'s'}\nAudio source duration: ${audio.sourceDuration===null?'not loaded':audio.sourceDuration.toFixed(2)+'s'}\nAudio volume: ${audio.volume}\nAudio muted: ${audio.muted}`:'';
-      return `Create or update a Mellow Video scene for ${scopeText}.\nChapter: ${this.options.chapter}\nFrame duration: ${(state.duration/1000).toFixed(3)} seconds\nFrame range: ${(state.start).toFixed(2)}s to ${(state.end).toFixed(2)}s${audioText}\nApply these live editor settings:\n${settings}\nKeep the sequence responsive on desktop and iPhone, preserve unrelated frames, and use MellowVideo FrameTimeline, themes, effects and frame-scoped audio so the result remains reusable.`;
+      const music=this.getBackgroundTrackState();const musicText=music?`\nBackground music source: ${music.file||music.source||'none'}\nBackground music enabled: ${music.enabled}\nBackground music volume: ${music.volume}\nBackground music loop: ${music.loop}\nBackground music continuous across frames: true`:'';
+      return `Create or update a Mellow Video scene for ${scopeText}.\nChapter: ${this.options.chapter}\nFrame duration: ${(state.duration/1000).toFixed(3)} seconds\nFrame range: ${(state.start).toFixed(2)}s to ${(state.end).toFixed(2)}s${audioText}${musicText}\nApply these live editor settings:\n${settings}\nKeep the sequence responsive on desktop and iPhone, preserve unrelated frames, and use MellowVideo FrameTimeline, themes, effects and frame-scoped audio so the result remains reusable.`;
     }
     generatePrompt(scope){
       if(!this.promptRoot||!this.timeline)return '';
@@ -354,8 +356,24 @@
     destroy(){if(this.target){this.target.classList.remove('mellow-camera-target');this.target.style.removeProperty('--mellow-camera-intensity');this.target.style.removeProperty('--mellow-camera-duration');this.target.style.removeProperty('--mellow-camera-origin')}this.target=null;this.host.classList.remove('has-mellow-camera-motion');delete this.host.dataset.cameraMotion;return this}
   }
 
+  class MellowBackgroundTrack{
+    constructor(audio,options={}){
+      if(!audio)throw new Error('MellowVideo.BackgroundTrack: an audio element is required.');
+      this.audio=audio;this.options={src:'',volume:.15,loop:true,enabled:true,...options};this.configure(this.options);
+    }
+    configure(options={}){this.options={...this.options,...options};if(this.options.src&&this.audio.getAttribute('src')!==this.options.src){this.audio.src=this.options.src;this.audio.load()}this.audio.volume=Math.max(0,Math.min(1,Number(this.options.volume)));this.audio.loop=Boolean(this.options.loop);this.audio.muted=!this.options.enabled;return this}
+    async play(){if(!this.options.enabled)return false;this.audio.muted=false;try{await this.audio.play();return true}catch(error){return false}}
+    pause(){this.audio.pause();return this}
+    setEnabled(enabled){this.options.enabled=Boolean(enabled);this.audio.muted=!this.options.enabled;if(!this.options.enabled)this.pause();return this}
+    setVolume(volume){this.options.volume=Math.max(0,Math.min(1,Number(volume)));this.audio.volume=this.options.volume;return this}
+    setLoop(loop){this.options.loop=Boolean(loop);this.audio.loop=this.options.loop;return this}
+    restart(){this.audio.currentTime=0;return this.play()}
+    getState(){return {enabled:this.options.enabled,source:this.options.src,file:(this.options.src||'').split(/[\\/]/).pop()||'',volume:this.audio.volume,loop:this.audio.loop,muted:this.audio.muted,paused:this.audio.paused,current:this.audio.currentTime,duration:Number.isFinite(this.audio.duration)?this.audio.duration:null}}
+    destroy(){this.pause();this.audio.removeAttribute('src');this.audio.load()}
+  }
+
   class MellowVideo{
-    static VERSION='0.11.0';
+    static VERSION='0.12.0';
     static AGENT_THEMES=['claude-code','vscode'];
     static AGENT_EFFECTS=['none','prompt-zoom','prompt-pan'];
     static CHAPTER_CARD_THEMES=['comic-cyber','cinematic-dark'];
@@ -367,6 +385,7 @@
     static SPEAKER_MOTIONS=['none','gentle-talk','expressive-talk'];
     static CameraMotion=MellowCameraMotion;
     static CAMERA_MOTIONS=['none','anime-thought-zoom','slow-focus-push'];
+    static BackgroundTrack=MellowBackgroundTrack;
     static CAPABILITIES=Object.freeze({
       presentation:{method:'show',modes:['story','cinematic-subtitles','cyberpunk-title']},
       agentWindow:{method:'agentWindowMarkup',themes:['claude-code','vscode'],effects:['none','prompt-zoom','prompt-pan'],options:['theme','effect','duration','agent','files','earlier','earlierLabel','previousReply','prompt','accepted','working','footer']},
@@ -375,8 +394,9 @@
       speakerMotion:{method:'applySpeakerMotion',presets:['none','gentle-talk','expressive-talk'],options:['selector','preset','intensity','speed','clipPath','mask','origin'],methods:['update','destroy'],isolatedLayer:true,featheredMask:true,reducedMotionSafe:true},
       cameraMotion:{method:'applyCameraMotion',presets:['none','anime-thought-zoom','slow-focus-push'],options:['selector','preset','intensity','duration','origin'],methods:['update','destroy'],reducedMotionSafe:true},
       thoughtBubble:{method:'styleThoughtBubble',className:'mellow-thought-bubble',keepsTextInHTML:true},
+      backgroundTrack:{method:'createBackgroundTrack',options:['src','volume','loop','enabled'],methods:['configure','play','pause','setEnabled','setVolume','setLoop','restart','getState','destroy'],continuousAcrossFrames:true,separateFromFrameAudio:true,requiresUserGesture:true},
       frameTimeline:{method:'createFrameTimeline',options:['selector','frames','audio','autoplay','loop','onChange','onComplete'],frameAudioOptions:['audio','audioSrc','audioStart','audioEnd','audioDuration','audioPlayback','audioLoop','audioVolume','audioScope'],controls:['goTo','next','previous','play','pause','setPlaying','recalculate','setFrameDuration','destroy'],audioSeek:true,audioTrim:true,audioLoop:true,frameScopedAudio:true}
-      ,debugMode:{method:'enableDebug',options:['timeline','chapter','label','storageKey','enabled','placement','controls','audioControls','promptExport'],placements:['fixed','after-host','frame-footer'],controlTypes:['select','toggle','number','action','readout'],promptScopes:['frame','chapter','moment'],methods:['setTimeline','setEnabled','setTimingVisible','setControlValue','getControlValues','getAudioState','previewAudio','renderControls','generatePrompt','copyPrompt','destroy'],readouts:['chapter','frame','frameDuration','elapsed','remaining','range','total','playState','audioCurrent','audioClipDuration','audioSourceDuration'],toggle:true}
+      ,debugMode:{method:'enableDebug',options:['timeline','chapter','label','storageKey','enabled','placement','controls','audioControls','backgroundTrack','promptExport'],placements:['fixed','after-host','frame-footer'],controlTypes:['select','toggle','number','action','readout'],promptScopes:['frame','chapter','moment'],methods:['setTimeline','setEnabled','setTimingVisible','setControlValue','getControlValues','getAudioState','getBackgroundTrackState','previewAudio','renderControls','generatePrompt','copyPrompt','destroy'],readouts:['chapter','frame','frameDuration','elapsed','remaining','range','total','playState','audioCurrent','audioClipDuration','audioSourceDuration'],toggle:true}
     });
 
     static describe(feature){
@@ -403,6 +423,7 @@
 
     static applyCameraMotion(host,options={}){return new MellowCameraMotion(host,options)}
     static styleThoughtBubble(element){if(element)element.classList.add('mellow-thought-bubble');return element}
+    static createBackgroundTrack(audio,options={}){return new MellowBackgroundTrack(audio,options)}
 
     static escape(value=''){
       return String(value).replace(/[&<>"']/g,char=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));

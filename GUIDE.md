@@ -1,5 +1,9 @@
 # Mellow Video usage guide
 
+## Keep music playing across frames
+
+Create one background track outside scene rendering and reuse it through the complete chapter or story. Start it only from the audio-consent user gesture. Pause and resume it with the master playback control; do not seek it during frame navigation. Keep frame sounds on a different audio element so both channels can play simultaneously.
+
 ## Show an internal thought
 
 Use an HTML thought bubble rather than a speech tail, then apply `anime-thought-zoom` to briefly push toward the subject’s face. Keep intensity near `1`; use `origin` to identify the face location. The preset supplies a quick push, restrained settling motion, and short emphasis lines rather than continuous shaking.

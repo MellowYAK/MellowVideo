@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.12.0] - 2026-08-31
+
+- Added reusable continuous background-music tracks separate from frame audio.
+- Added enabled, volume, loop, pause/resume, restart and state APIs.
+- Added background-track metadata to Debug Prompt Export.
+
 ## [0.11.0] - 2026-08-31
 
 - Added reusable `applyCameraMotion()` with anime thought zoom and slow focus push presets.

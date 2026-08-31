@@ -4,7 +4,11 @@ Mellow Video is a dependency-free presentation layer for timed visual stories.
 It coordinates reusable frame timing, presentation, navigation and optional
 frame-scoped audio while the host application remains in control.
 
-Current version: **0.11.0**
+Current version: **0.12.0**
+
+## Continuous background music
+
+`createBackgroundTrack(audio, options)` creates a separate music channel that continues across frame and chapter changes while frame sound effects use their own audio element. It supports source, volume, loop, enabled state, pause/resume, restart, live configuration and Prompt Export metadata.
 
 ## Camera motion and thoughts
 
